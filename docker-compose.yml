@@ -1,0 +1,31 @@
+# Production-ish deployment on a VPS:
+#   cp .env.example .env    # set HONEYNET_DASHBOARD_TOKEN
+#   docker compose up -d
+# The honeypots take the real ports (22, 23, 80). Move your own sshd to
+# another port FIRST, or you will lock yourself out.
+services:
+  honeynet:
+    build: .
+    image: honeynet:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "22:2222"     # SSH honeypot
+      - "23:2323"     # Telnet honeypot
+      - "80:8080"     # HTTP honeypot
+      - "127.0.0.1:9000:9000"  # dashboard: localhost only, reach it with `ssh -L 9000:localhost:9000`
+    volumes:
+      - honeynet-data:/data
+      - ./geoip:/geoip:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+volumes:
+  honeynet-data:

@@ -1,0 +1,17 @@
+# Local demo with synthetic traffic, nothing exposed to the internet:
+#   docker compose -f docker-compose.demo.yml up --build
+#   open http://localhost:9000
+services:
+  honeynet:
+    build: .
+    environment:
+      HONEYNET_DEMO: "true"
+    ports:
+      - "127.0.0.1:2222:2222"
+      - "127.0.0.1:2323:2323"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9000:9000"
+    read_only: true
+    tmpfs:
+      - "/data:uid=65532,gid=65532"
+    cap_drop: [ALL]
