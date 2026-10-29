@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -46,14 +47,25 @@ func (l *Limiter) Release(ip string) {
 
 // DeadlineConn refreshes an idle deadline on every read and write, but never
 // past a hard stop: bots that trickle one byte a minute still get cut off.
+// The idle timeout may be changed while other goroutines use the conn (the SSH
+// library reads from its own goroutine), so it is stored atomically.
 type DeadlineConn struct {
 	net.Conn
-	Idle     time.Duration
 	HardStop time.Time
+	idle     atomic.Int64
 }
 
+func NewDeadlineConn(c net.Conn, idle time.Duration, hardStop time.Time) *DeadlineConn {
+	d := &DeadlineConn{Conn: c, HardStop: hardStop}
+	d.idle.Store(int64(idle))
+	return d
+}
+
+// SetIdle changes the idle timeout for subsequent reads and writes.
+func (c *DeadlineConn) SetIdle(d time.Duration) { c.idle.Store(int64(d)) }
+
 func (c *DeadlineConn) deadline() time.Time {
-	d := time.Now().Add(c.Idle)
+	d := time.Now().Add(time.Duration(c.idle.Load()))
 	if !c.HardStop.IsZero() && d.After(c.HardStop) {
 		return c.HardStop
 	}

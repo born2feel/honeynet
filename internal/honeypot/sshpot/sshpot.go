@@ -83,11 +83,8 @@ func (s *Server) handle(nc net.Conn) {
 		s.emit.Emit(e)
 	}()
 
-	conn := &netutil.DeadlineConn{
-		Conn:     nc,
-		Idle:     30 * time.Second, // handshake + auth must be quick
-		HardStop: time.Now().Add(s.cfg.Limits.MaxDuration),
-	}
+	// Handshake and auth must be quick; the session idle limit applies after.
+	conn := netutil.NewDeadlineConn(nc, 30*time.Second, time.Now().Add(s.cfg.Limits.MaxDuration))
 
 	attempts := 0
 	auth := func(md ssh.ConnMetadata, password, detail string, ok bool) {
@@ -135,7 +132,7 @@ func (s *Server) handle(nc net.Conn) {
 		return // scanners that only grab the banner, failed auth, etc.
 	}
 	defer sconn.Close()
-	conn.Idle = s.cfg.Limits.Idle
+	conn.SetIdle(s.cfg.Limits.Idle)
 	go ssh.DiscardRequests(reqs)
 
 	user := sconn.User()

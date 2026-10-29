@@ -77,7 +77,7 @@ func (s *Server) handle(nc net.Conn) {
 		s.emit.Emit(e)
 	}()
 
-	conn := &netutil.DeadlineConn{Conn: nc, Idle: s.cfg.Limits.Idle, HardStop: time.Now().Add(s.cfg.Limits.MaxDuration)}
+	conn := netutil.NewDeadlineConn(nc, s.cfg.Limits.Idle, time.Now().Add(s.cfg.Limits.MaxDuration))
 	// We echo, client goes into character mode: what a real telnetd negotiates.
 	conn.Write([]byte{iac, will, optEcho, iac, will, optSGA, iac, do, optSGA})
 
